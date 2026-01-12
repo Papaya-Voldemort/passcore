@@ -1,0 +1,19 @@
+[package]
+name = "passcore"
+version = "0.1.0"
+edition = "2024"
+authors = ["SandersonFan <elinelson992@gmail.com>"]
+description = "Passcore is a lightweight Rust library that scores password strength."
+license = "MIT"
+repository = "https://github.com/Papaya-Voldemort/passcore"
+readme = "README.md"
+
+keywords = ["password", "strength", "security", "scoring", "rust"]
+categories = ["security", "authentication", "cryptography"]
+
+
+
+
+
+[dependencies]
+once_cell = "1.21.3"
