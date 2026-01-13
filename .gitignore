@@ -1,1 +1,13 @@
-/target
+# Ignore build output and dependencies
+target/
+
+# Ignore IDE and OS files
+.DS_Store
+*.swp
+*.swo
+*.tmp
+
+# Ignore performance tips and ideas
+performance-tips.md
+ideas.md
+

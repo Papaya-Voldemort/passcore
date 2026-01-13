@@ -1,12 +1,25 @@
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
+use std::borrow::Cow;
 
-pub static PASSWORD_SET: Lazy<HashSet<String>> = Lazy::new(|| {
-    // Load file and collect lines into a HashSet
-    let content = include_str!("../data/100k-most-used-passwords-NCSC.txt");
-    content
+#[derive(Debug)]
+pub struct PasswordEntry {
+    pub password: String,
+    pub len: usize,
+    pub first: Option<char>,
+    pub last: Option<char>,
+}
+
+pub static PASSWORD_DATA: Lazy<Vec<PasswordEntry>> = Lazy::new(|| {
+    include_str!("../data/100k-most-used-passwords-NCSC.txt")
         .lines()
-        .map(|line| line.trim().to_lowercase())
+        .map(|line| {
+            let pw = line.trim().to_lowercase();
+            let len = pw.chars().count();
+            let first = pw.chars().next();
+            let last = pw.chars().last();
+            PasswordEntry { password: pw, len, first, last }
+        })
         .collect()
 });
 
@@ -28,7 +41,7 @@ pub static PASSWORD_SET: Lazy<HashSet<String>> = Lazy::new(|| {
 /// println!("Your password's length scores {}", length_score)
 /// ```
 pub fn score_length(password: &str) -> u16 {
-    let length = password.len();
+    let length = password.chars().count();
     let score;
     if length == 0 {
         score = 0;
@@ -78,16 +91,17 @@ pub fn score_variety(password: &str) -> u16 {
     let mut symbol_count = false;
 
     for c in password.chars() {
-        if c.is_lowercase() {
-            lower_count = true;
-        } else if c.is_uppercase() {
-            upper_count = true;
-        } else if c.is_ascii_digit() {
-            digit_count = true;
-        } else {
-            symbol_count = true;
+        if lower_count && upper_count && digit_count && symbol_count {
+            break;
+        }
+        match c {
+            _ if c.is_lowercase() => lower_count = true,
+            _ if c.is_uppercase() => upper_count = true,
+            _ if c.is_numeric() => digit_count = true,
+            _ => symbol_count = true,
         }
     }
+
 
     let mut types = 0;
     if lower_count {
@@ -132,7 +146,7 @@ pub fn score_uniqueness(password: &str) -> u16 {
         return 0;
     }
 
-    let mut set: HashSet<char> = HashSet::new();
+    let mut set: HashSet<char> = HashSet::with_capacity(password.chars().count());
     for c in password.chars() {
         set.insert(c);
     }
@@ -156,27 +170,39 @@ pub fn score_uniqueness(password: &str) -> u16 {
 /// println!("Your password's penalties are {}", penalties)
 /// ```
 pub fn score_penalties(password: &str) -> u16 {
-    let normalized = password.trim().to_lowercase();
-    let len = normalized.len();
+    let needs_trim = password.starts_with(char::is_whitespace)
+        || password.ends_with(char::is_whitespace);
+    let trimmed = if needs_trim { password.trim() } else { password };    let normalized: Cow<str> = if trimmed.chars().any(|c| c.is_uppercase()) {
+        Cow::Owned(trimmed.to_lowercase())
+    } else {
+        Cow::Borrowed(trimmed)
+    };
 
-    if PASSWORD_SET.contains(&normalized) {
+    let len = normalized.chars().count();
+
+    // Direct match check
+    if PASSWORD_DATA.iter().any(|entry| entry.password == normalized) {
         return 0;
     }
 
-    let candidates = PASSWORD_SET.iter().filter(|common| {
-        let clen = common.len();
-        (clen as isize - len as isize).abs() <= 3
+    // Filter candidates by length difference
+    let candidates = PASSWORD_DATA.iter().filter(|common| {
+        (common.len as isize - len as isize).abs() <= 3
     });
 
+
     let first = normalized.chars().next();
-    let last = normalized.chars().rev().next();
+    let last = normalized.chars().next_back();
 
     for common in candidates {
-        let cfirst = common.chars().next();
-        let clast = common.chars().rev().next();
+        let cfirst = common.first;
+        let clast = common.last;
+        let distance = levenshtein_with_cutoff(&normalized, &common.password, 2);
 
         if first == cfirst || last == clast {
-            if levenshtein_with_cutoff(&normalized, common, 2) <= 2 {
+            if distance <= 2 {
+                return 150;
+            } else if distance <= 4 {
                 return 50;
             }
         }
@@ -187,6 +213,7 @@ pub fn score_penalties(password: &str) -> u16 {
 
 
 /// Function for modified levenshtein distance with cutoff for speed.
+#[inline]
 fn levenshtein_with_cutoff(a: &str, b: &str, threshold: usize) -> usize {
     let mut v0: Vec<usize> = (0..=b.len()).collect();
     let mut v1 = vec![0; b.len() + 1];
