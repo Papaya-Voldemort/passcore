@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
-use std::collections::HashSet;
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct PasswordEntry {
@@ -18,7 +18,12 @@ pub static PASSWORD_DATA: Lazy<Vec<PasswordEntry>> = Lazy::new(|| {
             let len = pw.chars().count();
             let first = pw.chars().next();
             let last = pw.chars().last();
-            PasswordEntry { password: pw, len, first, last }
+            PasswordEntry {
+                password: pw,
+                len,
+                first,
+                last,
+            }
         })
         .collect()
 });
@@ -102,7 +107,6 @@ pub fn score_variety(password: &str) -> u16 {
         }
     }
 
-
     let mut types = 0;
     if lower_count {
         types += 1;
@@ -151,7 +155,8 @@ pub fn score_uniqueness(password: &str) -> u16 {
         set.insert(c);
     }
 
-    let unique_ratio = set.len() as f32 / password.len() as f32;
+    let char_count = password.chars().count();
+    let unique_ratio = set.len() as f32 / char_count as f32;
 
     // Map ratio to 0–200 points
     (unique_ratio * 200.0).round() as u16
@@ -170,9 +175,14 @@ pub fn score_uniqueness(password: &str) -> u16 {
 /// println!("Your password's penalties are {}", penalties)
 /// ```
 pub fn score_penalties(password: &str) -> u16 {
-    let needs_trim = password.starts_with(char::is_whitespace)
-        || password.ends_with(char::is_whitespace);
-    let trimmed = if needs_trim { password.trim() } else { password };    let normalized: Cow<str> = if trimmed.chars().any(|c| c.is_uppercase()) {
+    let needs_trim =
+        password.starts_with(char::is_whitespace) || password.ends_with(char::is_whitespace);
+    let trimmed = if needs_trim {
+        password.trim()
+    } else {
+        password
+    };
+    let normalized: Cow<str> = if trimmed.chars().any(|c| c.is_uppercase()) {
         Cow::Owned(trimmed.to_lowercase())
     } else {
         Cow::Borrowed(trimmed)
@@ -181,15 +191,17 @@ pub fn score_penalties(password: &str) -> u16 {
     let len = normalized.chars().count();
 
     // Direct match check
-    if PASSWORD_DATA.iter().any(|entry| entry.password == normalized) {
+    if PASSWORD_DATA
+        .iter()
+        .any(|entry| entry.password == normalized)
+    {
         return 0;
     }
 
     // Filter candidates by length difference
-    let candidates = PASSWORD_DATA.iter().filter(|common| {
-        (common.len as isize - len as isize).abs() <= 3
-    });
-
+    let candidates = PASSWORD_DATA
+        .iter()
+        .filter(|common| (common.len as isize - len as isize).abs() <= 3);
 
     let first = normalized.chars().next();
     let last = normalized.chars().next_back();
@@ -211,7 +223,6 @@ pub fn score_penalties(password: &str) -> u16 {
     200
 }
 
-
 /// Function for modified levenshtein distance with cutoff for speed.
 #[inline]
 fn levenshtein_with_cutoff(a: &str, b: &str, threshold: usize) -> usize {
@@ -224,10 +235,7 @@ fn levenshtein_with_cutoff(a: &str, b: &str, threshold: usize) -> usize {
 
         for (j, cb) in b.chars().enumerate() {
             let cost = if ca == cb { 0 } else { 1 };
-            v1[j + 1] = std::cmp::min(
-                std::cmp::min(v1[j] + 1, v0[j + 1] + 1),
-                v0[j] + cost,
-            );
+            v1[j + 1] = std::cmp::min(std::cmp::min(v1[j] + 1, v0[j + 1] + 1), v0[j] + cost);
             min = std::cmp::min(min, v1[j + 1]);
         }
 
@@ -237,5 +245,9 @@ fn levenshtein_with_cutoff(a: &str, b: &str, threshold: usize) -> usize {
         std::mem::swap(&mut v0, &mut v1);
     }
     let result = v0[b.len()];
-    if result > threshold { threshold + 1 } else { result }
+    if result > threshold {
+        threshold + 1
+    } else {
+        result
+    }
 }
