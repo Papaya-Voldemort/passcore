@@ -20,11 +20,11 @@ pub fn score(password: &str) -> u16 {
     score += score_length(password);
     score += score_variety(password);
     score += score_uniqueness(password);
-    let penalty = score_penalties(password);
-    if penalty == 0 {
+    let commonness_score = score_penalties(password);
+    if commonness_score == 0 {
         score = 0;
     } else {
-        score += penalty;
+        score += commonness_score;
     }
     score
 }
@@ -42,13 +42,13 @@ pub fn score(password: &str) -> u16 {
 /// ```
 pub fn grade_password(password: &str) -> &str {
     let score = score(password);
-    if score >= 995 { "A+" }
-    else if score >= 980 { "A" }
-    else if score >= 950 { "A-" }
-    else if score >= 900 { "B+" }
-    else if score >= 850 { "B" }
-    else if score >= 800 { "B-" }
-    else if score >= 750 { "C+" }
+    if score >= 970 { "A+" }
+    else if score >= 930 { "A" }
+    else if score >= 890 { "A-" }
+    else if score >= 840 { "B+" }
+    else if score >= 800 { "B" }
+    else if score >= 750 { "B-" }
+    else if score >= 720 { "C+" }
     else if score >= 700 { "C" }
     else if score >= 650 { "C-" }
     else if score >= 600 { "D+" }
@@ -68,10 +68,10 @@ pub fn grade_password(password: &str) -> &str {
 /// print!("{}", review_password(password))
 /// ```
 pub fn review_password(password: &str) -> &str {
-    let length = score_length(password) / 2;
-    let variety = score_variety(password);
-    let uniqueness = score_uniqueness(password);
-    let penalty = score_penalties(password);
+    let length = score_length(password) / 4;
+    let variety = score_variety(password) / 2;
+    let uniqueness = score_uniqueness(password) / 2;
+    let penalty = score_penalties(password) / 2;
 
     let (min_name, min_value) = if length <= variety && length <= uniqueness && length <= penalty {
         ("length", length)
